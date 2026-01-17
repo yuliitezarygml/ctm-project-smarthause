@@ -28,6 +28,11 @@ type SensorData struct {
 	Time      time.Time `json:"time"`
 }
 
+type Card struct {
+	UID  string `json:"uid"`
+	Name string `json:"name"`
+}
+
 var (
 	latestData     SensorData
 	targetRelay    bool
@@ -37,6 +42,8 @@ var (
 	lampAutoModes  []bool = []bool{true, true, true, true, true, true}
 	dataLog        []SensorData
 	dataFilePath   = "data.json"
+	cardsFilePath  = "cards.json"
+	allowedCards   = []Card{} // List of allowed cards
 	solarPanelData = map[string]interface{}{
 		"power":       0.0,
 		"voltage":     0.0,
@@ -72,6 +79,41 @@ var (
 	}
 	mu sync.Mutex
 )
+
+// ---------- Cards Management ----------
+
+func loadCards() {
+	f, err := os.Open(cardsFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			allowedCards = []Card{}
+			return
+		}
+		fmt.Println("Error opening cards.json:", err)
+		return
+	}
+	defer f.Close()
+	dec := json.NewDecoder(f)
+	if err := dec.Decode(&allowedCards); err != nil {
+		fmt.Println("Error decoding cards.json:", err)
+		allowedCards = []Card{}
+	}
+	fmt.Println("Loaded", len(allowedCards), "cards")
+}
+
+func saveCards() {
+	f, err := os.Create(cardsFilePath)
+	if err != nil {
+		fmt.Println("Error creating cards.json:", err)
+		return
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(allowedCards); err != nil {
+		fmt.Println("Error encoding cards.json:", err)
+	}
+}
 
 // ---------- JSON лог ----------
 
@@ -262,18 +304,107 @@ func getLocalIP() string {
 
 func main() {
 	loadDataLog()
+	loadCards()
 	go updateWeather()
 
 	r := gin.Default()
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
 		c.Next()
+	})
+
+	// ESP32 -> сервер (RFID Авторизация)
+	r.POST("/api/auth/card", func(c *gin.Context) {
+		var req struct {
+			CardUID string `json:"card_uid"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil {
+			mu.Lock()
+			fmt.Printf("RFID Access Attempt: %s\n", req.CardUID)
+
+			// Check if card is allowed
+			allowed := false
+			if len(allowedCards) == 0 {
+				// If no cards registered, allow all (setup mode) or you can deny.
+				// Let's allow for now to easily register first card.
+				allowed = true
+			} else {
+				for _, card := range allowedCards {
+					if card.UID == req.CardUID {
+						allowed = true
+						break
+					}
+				}
+			}
+
+			if allowed {
+				// 1. Включаем Лампу 1
+				lampCommands[0] = true
+				lampAutoModes[0] = false
+
+				// 2. Обновляем время последнего доступа
+				latestData.CardUID = req.CardUID
+
+				mu.Unlock()
+				c.JSON(200, gin.H{"status": "granted", "message": "Welcome home"})
+			} else {
+				mu.Unlock()
+				c.JSON(403, gin.H{"status": "denied", "message": "Access denied"})
+			}
+		} else {
+			c.JSON(400, gin.H{"error": "Invalid data"})
+		}
+	})
+
+	// Security Management APIs
+	r.GET("/api/security/cards", func(c *gin.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		c.JSON(200, allowedCards)
+	})
+
+	r.POST("/api/security/cards", func(c *gin.Context) {
+		var newCard Card
+		if err := c.ShouldBindJSON(&newCard); err == nil {
+			mu.Lock()
+			// Check if exists
+			exists := false
+			for _, card := range allowedCards {
+				if card.UID == newCard.UID {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				allowedCards = append(allowedCards, newCard)
+				saveCards()
+			}
+			mu.Unlock()
+			c.JSON(200, gin.H{"status": "ok"})
+		} else {
+			c.JSON(400, gin.H{"error": "Invalid data"})
+		}
+	})
+
+	r.DELETE("/api/security/cards/:uid", func(c *gin.Context) {
+		uid := c.Param("uid")
+		mu.Lock()
+		newCards := []Card{}
+		for _, card := range allowedCards {
+			if card.UID != uid {
+				newCards = append(newCards, card)
+			}
+		}
+		allowedCards = newCards
+		saveCards()
+		mu.Unlock()
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 
 	// ESP32 -> сервер
@@ -328,7 +459,7 @@ func main() {
 			"lock":             false,
 			"learning":         false,
 			"weather":          weatherInfo,
-			"last_access":      "System ready",
+			"last_access":      fmt.Sprintf("Last entry: %s", latestData.CardUID), // Показываем UID последней карты
 			"lamps":            lampCommands,
 			"lamps_auto":       lampAutoModes,
 			"clock":            clock,
@@ -339,6 +470,14 @@ func main() {
 		// Add caching headers for better performance
 		c.Header("Cache-Control", "public, max-age=5")
 		c.JSON(200, response)
+	})
+
+	// Endpoint specifically for Solar Panel component
+	r.GET("/api/solar-panel", func(c *gin.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		c.Header("Cache-Control", "public, max-age=2")
+		c.JSON(200, solarPanelData)
 	})
 
 	// --------- НОВЫЙ API ДЛЯ 2‑х ESP: /v3/time ---------
@@ -431,6 +570,62 @@ func main() {
 		f.Write(c.Writer)
 	})
 
+	// LedStripState struct
+	type LedStripState struct {
+		State      bool `json:"state"`
+		R          int  `json:"r"`
+		G          int  `json:"g"`
+		B          int  `json:"b"`
+		Brightness int  `json:"brightness"`
+	}
+
+	var (
+		// ... existing variables ...
+		ledStripState = LedStripState{
+			State:      true,
+			R:          255,
+			G:          0,
+			B:          0,
+			Brightness: 100,
+		}
+	// ...
+	)
+
+	// ...
+
+	// Endpoint for ESP2 to get lamp commands
+	r.GET("/api/lamps/commands", func(c *gin.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		c.JSON(200, gin.H{
+			"lamp_commands": lampCommands,
+			// We can also send auto modes if ESP2 needs to know, but main logic is usually on server or app
+			// For now just commands
+		})
+	})
+
+	// New endpoints for LED Strip
+	r.GET("/api/ledstrip/config", func(c *gin.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		c.JSON(200, ledStripState)
+	})
+
+	r.POST("/api/ledstrip/set", func(c *gin.Context) {
+		var newState LedStripState
+		if err := c.ShouldBindJSON(&newState); err == nil {
+			mu.Lock()
+			ledStripState = newState
+			fmt.Printf("LED Strip Updated: On=%v, RGB=(%d,%d,%d), Bri=%d\n",
+				newState.State, newState.R, newState.G, newState.B, newState.Brightness)
+			mu.Unlock()
+			c.JSON(200, gin.H{"status": "ok"})
+		} else {
+			c.JSON(400, gin.H{"error": "Invalid data"})
+		}
+	})
+
 	fmt.Printf("Server starting on %s:8080\n", getLocalIP())
+	// ...
 	r.Run("0.0.0.0:8080")
 }

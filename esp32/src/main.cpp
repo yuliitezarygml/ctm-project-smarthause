@@ -3,32 +3,35 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
 // ================= НАСТРОЙКИ СЕТИ =================
 const char* ssid = "vr";
 const char* password = "123456789";
-const char* serverUrl = "http://192.168.50.9:8080/update"; // Обновленный IP
+const char* serverUrl = "http://192.168.50.9:8080/update";
+const char* authUrl = "http://192.168.50.9:8080/api/auth/card"; // Endpoint для авторизации
 
 // ================= ПИНЫ ПОДКЛЮЧЕНИЯ =================
 #define DHTPIN    4
 #define RELAY_PIN 26
-#define SOIL_PIN  34 // Аналоговый вход для датчика почвы
-#define LED_PIN_1 12
-#define LED_PIN_2 13
-#define LED_PIN_3 14
-#define LED_PIN_4 15
-#define LED_PIN_5 16
-#define LED_PIN_6 17
+#define SOIL_PIN  34 
+#define SS_PIN    5  // RFID SDA (SS)
+#define RST_PIN   22 // RFID RST
+// LED Pins removed - moved to ESP2
 
 // ================= ОБЪЕКТЫ =================
 DHT dht(DHTPIN, DHT11);
+MFRC522 rfid(SS_PIN, RST_PIN);
 
 // ================= ПЕРЕМЕННЫЕ =================
 bool relayState = false;
-bool ledStates[6] = {false, false, false, false, false, false};
+// ledStates moved to ESP2
 
 void setup() {
     Serial.begin(115200);
+    SPI.begin();     // Инициализация SPI шины
+    rfid.PCD_Init(); // Инициализация MFRC522
     dht.begin();
     
     // Настройка пина датчика почвы (вход)
@@ -39,20 +42,7 @@ void setup() {
     digitalWrite(RELAY_PIN, HIGH); // Начальное состояние - выключено (инвертировано)
     Serial.println("Relay initialized. Initial state: OFF");
 
-    // Настройка светодиодов
-    pinMode(LED_PIN_1, OUTPUT);
-    pinMode(LED_PIN_2, OUTPUT);
-    pinMode(LED_PIN_3, OUTPUT);
-    pinMode(LED_PIN_4, OUTPUT);
-    pinMode(LED_PIN_5, OUTPUT);
-    pinMode(LED_PIN_6, OUTPUT);
-    digitalWrite(LED_PIN_1, LOW);
-    digitalWrite(LED_PIN_2, LOW);
-    digitalWrite(LED_PIN_3, LOW);
-    digitalWrite(LED_PIN_4, LOW);
-    digitalWrite(LED_PIN_5, LOW);
-    digitalWrite(LED_PIN_6, LOW);
-    Serial.println("LEDs initialized. All LEDs: OFF");
+    // LEDs setup removed
 
     // Подключение к WiFi
     Serial.println("Connecting to WiFi");
@@ -84,6 +74,46 @@ void loop() {
     if (isnan(temperature)) temperature = 0.0;
     if (isnan(humidity)) humidity = 0.0;
 
+    // --- RFID Считывание ---
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        String uid = "";
+        for (byte i = 0; i < rfid.uid.size; i++) {
+            uid += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+            uid += String(rfid.uid.uidByte[i], HEX);
+        }
+        uid.toUpperCase();
+        
+        Serial.print("RFID Detected: ");
+        Serial.println(uid);
+
+        // Отправка UID на сервер
+        if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            http.begin(authUrl);
+            http.addHeader("Content-Type", "application/json");
+            
+            String json = "{\"card_uid\": \"" + uid + "\"}";
+            int httpCode = http.POST(json);
+            
+            if (httpCode == 200) {
+                Serial.println("Auth Success!");
+                // Можно помигать светодиодом для подтверждения (например встроенным)
+                // digitalWrite(LED_PIN_1, HIGH); 
+                // delay(500);
+                // digitalWrite(LED_PIN_1, LOW);
+            } else {
+                Serial.printf("Auth Failed: %d\n", httpCode);
+            }
+            http.end();
+        }
+        
+        // Halt PICC
+        rfid.PICC_HaltA();
+        // Stop encryption on PCD
+        rfid.PCD_StopCrypto1();
+    }
+    // -----------------------
+
     // Отправка данных на сервер
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
@@ -96,10 +126,7 @@ void loop() {
         doc["hum"] = humidity;
         doc["soil"] = soilPercent; // Добавляем влажность почвы
         doc["relay"] = relayState;
-        JsonArray ledsArray = doc.createNestedArray("lamps");
-        for (int i = 0; i < 6; i++) {
-            ledsArray.add(ledStates[i]);
-        }
+        // LEDs array removed from here - moved to ESP2
 
         String requestBody;
         serializeJson(doc, requestBody);
@@ -134,21 +161,7 @@ void loop() {
                     Serial.println("No command_relay in response");
                 }
 
-                // Получение команд для светодиодов
-                if (res.containsKey("lamp_commands")) {
-                    JsonArray lampCommands = res["lamp_commands"];
-                    for (int i = 0; i < 6 && i < lampCommands.size(); i++) {
-                        bool newLedState = lampCommands[i];
-                        if (newLedState != ledStates[i]) {
-                            ledStates[i] = newLedState;
-                            int ledPin = LED_PIN_1 + i;
-                            digitalWrite(ledPin, ledStates[i] ? HIGH : LOW); // Прямая логика
-                            Serial.printf("LED %d state changed to: %s\n", i+1, ledStates[i] ? "ON" : "OFF");
-                        }
-                    }
-                } else {
-                    Serial.println("No lamp_commands in response");
-                }
+                // LEDs command handling removed from here - moved to ESP2
             } else {
                 Serial.print("JSON parse error: ");
                 Serial.println(error.c_str());
@@ -162,13 +175,8 @@ void loop() {
     }
 
     // Вывод данных в Serial Monitor
-    Serial.printf("Temp: %.1fC, Hum: %.1f%%, Soil: %d%%, Relay: %s, LEDs: [",
+    Serial.printf("Temp: %.1fC, Hum: %.1f%%, Soil: %d%%, Relay: %s\n",
                  temperature, humidity, soilPercent, relayState ? "ON" : "OFF");
-    for (int i = 0; i < 6; i++) {
-        Serial.printf("%s", ledStates[i] ? "ON" : "OFF");
-        if (i < 5) Serial.print(", ");
-    }
-    Serial.println("]");
-
+    
     delay(2000); // Отправка данных каждые 2 секунды
 }

@@ -255,6 +255,59 @@ class ApiProvider with ChangeNotifier {
     }
   }
 
+  Future<List<dynamic>> fetchCards() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiEndpoints.baseUrl}/api/security/cards'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to fetch cards');
+      }
+    } catch (error) {
+      log('Error fetching cards: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> addCard(String uid, String name) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}/api/security/cards'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'uid': uid, 'name': name}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to add card');
+      }
+      log('Added card: $uid ($name)');
+    } catch (error) {
+      log('Error adding card: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCard(String uid) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiEndpoints.baseUrl}/api/security/cards/$uid'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete card');
+      }
+      log('Deleted card: $uid');
+    } catch (error) {
+      log('Error deleting card: $error');
+      rethrow;
+    }
+  }
+
   @override
   void dispose() {
     stopAutoRefresh();

@@ -10,6 +10,7 @@ import '../widgets/lamp_control_card.dart';
 import '../widgets/security_card.dart';
 import 'account_screen.dart';
 import 'about_screen.dart';
+import 'security_settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -169,9 +170,12 @@ class SettingsScreen extends StatelessWidget {
                   ListTile(
                     leading: const Icon(Icons.security),
                     title: const Text('Security Settings'),
+                    subtitle: const Text('Manage RFID access cards'),
+                    trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Скоро буду')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
                       );
                     },
                   ),
