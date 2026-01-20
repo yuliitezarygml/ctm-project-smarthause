@@ -38,8 +38,9 @@ var (
 	targetRelay    bool
 	weatherInfo    string = "--°C"
 	history        []map[string]interface{}
-	lampCommands   []bool = []bool{false, false, false, false, false, false}
-	lampAutoModes  []bool = []bool{false, false, false, false, false, false}
+	lampCommands   []bool       = []bool{false, false, false, false, false, false}
+	lampAutoModes  []bool       = []bool{false, false, false, false, false, false}
+	lampTimers     [6]time.Time // Timers for lamps
 	dataLog        []SensorData
 	dataFilePath   = "data.json"
 	cardsFilePath  = "cards.json"
@@ -158,6 +159,27 @@ func saveDataLog() {
 }
 
 // -----------------------------
+
+func checkTimers() {
+	for {
+		time.Sleep(1 * time.Second)
+		mu.Lock()
+		now := time.Now()
+		for i := 0; i < 6; i++ {
+			// Check if timer expired
+			if !lampTimers[i].IsZero() && now.After(lampTimers[i]) {
+				lampCommands[i] = false
+				lampTimers[i] = time.Time{} // Reset
+				fmt.Printf("Lamp %d timer expired, turning OFF\n", i+1)
+			}
+			// If lamp is turned off manually, cancel timer
+			if !lampCommands[i] {
+				lampTimers[i] = time.Time{}
+			}
+		}
+		mu.Unlock()
+	}
+}
 
 func updateWeather() {
 	for {
@@ -306,6 +328,7 @@ func main() {
 	loadDataLog()
 	loadCards()
 	go updateWeather()
+	go checkTimers()
 
 	r := gin.Default()
 	r.Use(func(c *gin.Context) {
@@ -502,6 +525,33 @@ func main() {
 			fmt.Printf("Lamp %d toggled: %v\n", id+1, lampCommands[id])
 		}
 		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// New endpoint to set a timer for a lamp
+	r.POST("/api/lamp/:id/timer", func(c *gin.Context) {
+		id, _ := strconv.Atoi(c.Param("id"))
+		var req struct {
+			Minutes int `json:"minutes"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil && id >= 0 && id < 6 {
+			mu.Lock()
+			// Turn on the lamp
+			lampCommands[id] = true
+			lampAutoModes[id] = false
+			// Set the timer
+			if req.Minutes > 0 {
+				lampTimers[id] = time.Now().Add(time.Duration(req.Minutes) * time.Minute)
+				fmt.Printf("Lamp %d timer set for %d minutes\n", id+1, req.Minutes)
+			} else {
+				// If 0 or negative, just turn on without timer (or maybe cancel timer?)
+				lampTimers[id] = time.Time{}
+				fmt.Printf("Lamp %d turned on without timer\n", id+1)
+			}
+			mu.Unlock()
+			c.JSON(200, gin.H{"status": "ok"})
+		} else {
+			c.JSON(400, gin.H{"error": "Invalid data or ID"})
+		}
 	})
 
 	// New endpoint to set specific state

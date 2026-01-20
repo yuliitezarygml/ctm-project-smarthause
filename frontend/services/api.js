@@ -113,6 +113,21 @@ export const setLampState = async (id, state) => {
   }
 };
 
+export const setLampTimer = async (id, minutes) => {
+  try {
+    const response = await makeApiRequest(`/api/lamp/${id}/timer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ minutes }),
+    });
+    return response.json();
+  } catch (error) {
+    throw new Error('Failed to set lamp timer');
+  }
+};
+
 export const toggleLampAuto = async (id) => {
   try {
     const response = await makeApiRequest(`/api/lamp/${id}/auto`, {

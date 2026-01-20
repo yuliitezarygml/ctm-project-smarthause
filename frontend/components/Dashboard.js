@@ -12,6 +12,7 @@ import {
   toggleRelay,
   toggleLamp,
   setLampState,
+  setLampTimer,
   setAllLamps
 } from '../services/api';
 
@@ -23,6 +24,11 @@ const Dashboard = () => {
   const [isToggling, setIsToggling] = useState(false);
   const [ledToggling, setLedToggling] = useState(Array(6).fill(false));
   const [apiUrl, setApiUrl] = useState('http://192.168.50.9:8080');
+
+  // Timer Modal State
+  const [showTimerModal, setShowTimerModal] = useState(false);
+  const [timerTargetIds, setTimerTargetIds] = useState([]);
+  const [timerMinutes, setTimerMinutes] = useState(5);
 
   // Optimization: Use separate function for polling to avoid useEffect dependency loops
   const fetchData = async (background = false) => {
@@ -146,6 +152,41 @@ const Dashboard = () => {
     } finally {
       setIsToggling(false);
     }
+  };
+
+  const openTimerModal = (ids) => {
+    setTimerTargetIds(ids);
+    setTimerMinutes(5); // Reset to default
+    setShowTimerModal(true);
+  };
+
+  const submitTimer = async () => {
+      setShowTimerModal(false);
+      try {
+          // Optimistic update (turn on)
+          setStatus(prev => {
+              if (!prev || !prev.lamps) return prev;
+              const newLamps = [...prev.lamps];
+              timerTargetIds.forEach(id => {
+                  newLamps[id] = true;
+              });
+              return {
+                  ...prev,
+                  lamps: newLamps,
+                  data: { ...prev.data, lamps: newLamps }
+              };
+          });
+
+          // Send requests
+          const promises = timerTargetIds.map(id => setLampTimer(id, parseInt(timerMinutes)));
+          await Promise.all(promises);
+          
+          alert(`Таймер установлен на ${timerMinutes} мин`);
+          fetchData(true);
+      } catch (err) {
+          console.error("Error setting timer:", err);
+          alert("Ошибка установки таймера");
+      }
   };
 
   const handleApiUrlChange = (e) => {
@@ -409,6 +450,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([0, 1])} title="Таймер">
+                            <Icons.Clock size={24} />
+                        </button>
                         <label className="ha-switch">
                             <input 
                                 type="checkbox" 
@@ -435,6 +479,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([2, 3])} title="Таймер">
+                            <Icons.Clock size={24} />
+                        </button>
                         <label className="ha-switch">
                             <input 
                                 type="checkbox" 
@@ -461,6 +508,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([4])} title="Таймер">
+                            <Icons.Clock size={24} />
+                        </button>
                         <label className="ha-switch">
                             <input 
                                 type="checkbox" 
@@ -487,6 +537,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([5])} title="Таймер">
+                            <Icons.Clock size={24} />
+                        </button>
                         <label className="ha-switch">
                             <input 
                                 type="checkbox" 
@@ -594,6 +647,31 @@ const Dashboard = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Timer */}
+        {showTimerModal && (
+          <div className="ha-modal-overlay" onClick={() => setShowTimerModal(false)}>
+            <div className="ha-modal" onClick={e => e.stopPropagation()}>
+              <h3 className="ha-modal-title">Таймер отключения</h3>
+              <div className="ha-form-group">
+                  <label className="ha-form-label">Время (минуты)</label>
+                  <input 
+                      type="number" 
+                      min="1" 
+                      max="1440"
+                      className="ha-form-input" 
+                      value={timerMinutes} 
+                      onChange={e => setTimerMinutes(e.target.value)}
+                  />
+                  <p className="ha-form-hint">Свет выключится автоматически через указанное время.</p>
+              </div>
+              <div className="ha-modal-actions">
+                  <button className="ha-button ha-button-secondary" onClick={() => setShowTimerModal(false)}>Отмена</button>
+                  <button className="ha-button ha-button-primary" onClick={submitTimer}>Запустить</button>
               </div>
             </div>
           </div>
