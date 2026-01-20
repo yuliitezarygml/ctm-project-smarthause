@@ -475,6 +475,17 @@ func main() {
 
 		clock := time.Now().Format("15:04")
 
+		// Calculate remaining time for timers
+		timers := make([]int, 6)
+		now := time.Now()
+		for i := 0; i < 6; i++ {
+			if !lampTimers[i].IsZero() && lampTimers[i].After(now) {
+				timers[i] = int(lampTimers[i].Sub(now).Seconds())
+			} else {
+				timers[i] = 0
+			}
+		}
+
 		// Optimized response with only necessary data
 		response := gin.H{
 			"data":             latestData,
@@ -485,6 +496,7 @@ func main() {
 			"last_access":      fmt.Sprintf("Last entry: %s", latestData.CardUID), // Показываем UID последней карты
 			"lamps":            lampCommands,
 			"lamps_auto":       lampAutoModes,
+			"timers":           timers, // NEW: Remaining time in seconds
 			"clock":            clock,
 			"solar_panel":      solarPanelData,
 			"weather_forecast": weatherForecast,

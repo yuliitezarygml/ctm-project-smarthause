@@ -30,6 +30,14 @@ const Dashboard = () => {
   const [timerTargetIds, setTimerTargetIds] = useState([]);
   const [timerMinutes, setTimerMinutes] = useState(5);
 
+  // Helper to format seconds to MM:SS
+  const formatTimer = (seconds) => {
+    if (!seconds || seconds <= 0) return null;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   // Optimization: Use separate function for polling to avoid useEffect dependency loops
   const fetchData = async (background = false) => {
     try {
@@ -450,6 +458,11 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        {status?.timers && (status.timers[0] > 0 || status.timers[1] > 0) && (
+                            <span className="ha-timer-badge">
+                                {formatTimer(Math.max(status.timers[0], status.timers[1]))}
+                            </span>
+                        )}
                         <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([0, 1])} title="Таймер">
                             <Icons.Clock size={24} />
                         </button>
@@ -479,6 +492,11 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        {status?.timers && (status.timers[2] > 0 || status.timers[3] > 0) && (
+                            <span className="ha-timer-badge">
+                                {formatTimer(Math.max(status.timers[2], status.timers[3]))}
+                            </span>
+                        )}
                         <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([2, 3])} title="Таймер">
                             <Icons.Clock size={24} />
                         </button>
@@ -508,6 +526,11 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        {status?.timers && status.timers[4] > 0 && (
+                            <span className="ha-timer-badge">
+                                {formatTimer(status.timers[4])}
+                            </span>
+                        )}
                         <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([4])} title="Таймер">
                             <Icons.Clock size={24} />
                         </button>
@@ -537,6 +560,11 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="ha-entity-controls">
+                        {status?.timers && status.timers[5] > 0 && (
+                            <span className="ha-timer-badge">
+                                {formatTimer(status.timers[5])}
+                            </span>
+                        )}
                         <button className="ha-icon-button" style={{marginRight: '12px'}} onClick={() => openTimerModal([5])} title="Таймер">
                             <Icons.Clock size={24} />
                         </button>

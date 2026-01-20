@@ -46,6 +46,7 @@ export const fetchStatus = async () => {
         relay: false,
         lamps: [false, false, false, false, false, false],
         lamps_auto: [true, true, true, true, true, true],
+        timers: [0, 0, 0, 0, 0, 0], // Mock timers
         soil: 0,
         light: 0
       },
@@ -54,6 +55,7 @@ export const fetchStatus = async () => {
       learning: false,
       weather: "22.5°C",
       last_access: "System ready",
+      timers: [0, 0, 0, 0, 0, 0], // Top level mock timers
       clock: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
       solar_panel: {
         power: "250 W",

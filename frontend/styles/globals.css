@@ -1112,3 +1112,17 @@ input:checked + .ha-slider:before {
   gap: 12px;
   margin-top: 24px;
 }
+
+/* Timer Badge */
+.ha-timer-badge {
+    background-color: var(--ha-accent);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 8px;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    animation: fadeInScale 0.3s ease-out;
+    font-feature-settings: "tnum";
+}
