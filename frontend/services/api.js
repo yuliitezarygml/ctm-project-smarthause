@@ -35,7 +35,14 @@ async function makeApiRequest(endpoint, options = {}) {
 export const fetchStatus = async () => {
   try {
     const response = await makeApiRequest('/api/status');
-    return response.json();
+    const data = await response.json();
+    
+    // Polyfill timers if missing (backward compatibility)
+    if (!data.timers) {
+        data.timers = [0, 0, 0, 0, 0, 0];
+    }
+    
+    return data;
   } catch (error) {
     console.error('API Error:', error);
     // Return mock data when API is unavailable for better UX
