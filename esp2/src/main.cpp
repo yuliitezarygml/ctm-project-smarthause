@@ -2,11 +2,16 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <LiquidCrystal_I2C.h>
 
 // ================= НАСТРОЙКИ СЕТИ =================
 const char* ssid = "vr";
 const char* password = "123456789";
-const char* serverUrl = "http://192.168.50.9:8080/api/lamps/commands";
+const char* serverUrl = "http://192.168.50.9:8080/api/esp2/state";
+
+// ================= LCD DISPLAY =================
+// Адрес I2C обычно 0x27 или 0x3F. Укажите правильный адрес.
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // ================= ПИНЫ СВЕТОДИОДОВ =================
 // Pins 12-14 and 27, 26, 25 are common on ESP32 DevKit V1
@@ -41,6 +46,14 @@ void setup() {
 
   Serial.println("LEDs initialized.");
 
+  // Инициализация LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("WiFi Connecting");
+  lcd.setCursor(0, 1);
+  lcd.print("...");
+
   // Подключение к WiFi
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
@@ -60,10 +73,11 @@ void loop() {
     if (httpCode == 200) {
       String payload = http.getString();
       
-      StaticJsonDocument<512> doc;
+      StaticJsonDocument<1024> doc;
       DeserializationError error = deserializeJson(doc, payload);
 
       if (!error) {
+        // Обновление ламп
         if (doc.containsKey("lamp_commands")) {
             JsonArray lampCommands = doc["lamp_commands"];
             for (int i = 0; i < 6 && i < lampCommands.size(); i++) {
@@ -83,6 +97,24 @@ void loop() {
                     Serial.printf("LED %d set to %s\n", i+1, ledStates[i] ? "ON" : "OFF");
                 }
             }
+        }
+        
+        // Обновление LCD
+        if (doc.containsKey("sensors")) {
+             JsonObject sensors = doc["sensors"];
+             float temp = sensors["temp"];
+             float hum = sensors["hum"];
+             int soil = sensors["soil"];
+
+             char buffer[17]; // Buffer for 16 chars + null terminator
+             
+             lcd.setCursor(0, 0);
+             sprintf(buffer, "T:%.1fC H:%.0f%%", temp, hum);
+             lcd.print(buffer);
+             
+             lcd.setCursor(0, 1);
+             sprintf(buffer, "Soil: %d%%", soil); // Assuming soil is percentage, or raw value
+             lcd.print(buffer);
         }
       } else {
         Serial.print("JSON Error: ");

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import '../utils/constants.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import 'main_screen.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,15 +18,31 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigateToMain();
+    _checkAuth();
   }
 
-  Future<void> _navigateToMain() async {
+  Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 3));
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // We assume autoLogin() checks for stored credentials.
+      // For now, since autoLogin in provider is just a simulation that might fail/succeed based on logic:
+      bool isLoggedIn = await authProvider.autoLogin();
+      
+      // Force logout for this demo if needed, or check actual state
+      // For this task, we want to show LoginScreen if not authenticated.
+      // The current autoLogin implementation in AuthProvider sets _isAuthenticated = false by default
+      // unless we change it.
+      
+      if (isLoggedIn) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
     }
   }
 

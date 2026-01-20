@@ -77,7 +77,16 @@ class SmartHomeData {
   double get temperature => data['temp']?.toDouble() ?? 0.0;
   double get humidity => data['hum']?.toDouble() ?? 0.0;
   double get soilMoisture => data['soil']?.toDouble() ?? 0.0;
-  double get lightLevel => data['light']?.toDouble() ?? 0.0;
+  double get lightLevel {
+    double baseLight = data['light']?.toDouble() ?? 0.0;
+    
+    // Эмуляция уровня света на основе включенных ламп (как на сайте)
+    // Formula: Base + (ActiveLamps / TotalLamps) * 50
+    int activeLamps = lamps.where((l) => l).length;
+    double additionalLight = (activeLamps / 6.0) * 50.0;
+    
+    return baseLight + additionalLight;
+  }
 
   String get solarPower => solarPanel?['power'] ?? '0 W';
   String get solarVoltage => solarPanel?['voltage'] ?? '0 V';

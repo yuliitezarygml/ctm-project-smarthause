@@ -39,7 +39,7 @@ var (
 	weatherInfo    string = "--°C"
 	history        []map[string]interface{}
 	lampCommands   []bool = []bool{false, false, false, false, false, false}
-	lampAutoModes  []bool = []bool{true, true, true, true, true, true}
+	lampAutoModes  []bool = []bool{false, false, false, false, false, false}
 	dataLog        []SensorData
 	dataFilePath   = "data.json"
 	cardsFilePath  = "cards.json"
@@ -504,6 +504,24 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
+	// New endpoint to set specific state
+	r.POST("/api/lamp/:id/state", func(c *gin.Context) {
+		id, _ := strconv.Atoi(c.Param("id"))
+		var req struct {
+			State bool `json:"state"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil && id >= 0 && id < 6 {
+			mu.Lock()
+			lampCommands[id] = req.State
+			lampAutoModes[id] = false
+			mu.Unlock()
+			fmt.Printf("Lamp %d set to: %v\n", id+1, req.State)
+			c.JSON(200, gin.H{"status": "ok"})
+		} else {
+			c.JSON(400, gin.H{"error": "Invalid data or ID"})
+		}
+	})
+
 	r.POST("/api/lamp/:id/auto", func(c *gin.Context) {
 		id, _ := strconv.Atoi(c.Param("id"))
 		if id >= 0 && id < 6 {
@@ -592,6 +610,20 @@ func main() {
 	)
 
 	// ...
+
+	// Endpoint for ESP2 to get lamp commands AND sensor data
+	r.GET("/api/esp2/state", func(c *gin.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		c.JSON(200, gin.H{
+			"lamp_commands": lampCommands,
+			"sensors": gin.H{
+				"temp": latestData.Temp,
+				"hum":  latestData.Hum,
+				"soil": latestData.Soil,
+			},
+		})
+	})
 
 	// Endpoint for ESP2 to get lamp commands
 	r.GET("/api/lamps/commands", func(c *gin.Context) {

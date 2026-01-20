@@ -14,7 +14,7 @@ class ClimateCard extends StatelessWidget {
         final data = apiProvider.smartHomeData;
         
         // Show simulated loading/empty state if no data, or real values if available
-        final temp = data?.temperature.toStringAsFixed(1) ?? '--';
+        final temp = data?.temperature.toStringAsFixed(2) ?? '--';
         final hum = data?.humidity.toStringAsFixed(1) ?? '--';
         final soil = data?.soilMoisture.toStringAsFixed(1) ?? '--';
         final light = data?.lightLevel.toStringAsFixed(1) ?? '--';

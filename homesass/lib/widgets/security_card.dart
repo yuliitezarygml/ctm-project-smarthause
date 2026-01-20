@@ -52,7 +52,7 @@ class SecurityCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 
-                // Main Relay Control
+                // Conditioner Control
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -74,7 +74,7 @@ class SecurityCard extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          Icons.power_settings_new, 
+                          Icons.ac_unit, // Changed to AC icon
                           color: Colors.white, 
                           size: 24
                         ),
@@ -85,7 +85,7 @@ class SecurityCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Main Power Relay',
+                              'Air Conditioner',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -93,12 +93,12 @@ class SecurityCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              isRelayOn ? 'Active (Power ON)' : 'Inactive (Power OFF)',
+                              isRelayOn ? 'On' : 'Off',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 color: isRelayOn ? AppColors.successColor : AppColors.hintColor,
                                 fontWeight: FontWeight.w500,
-                              ),
+                               ),
                             ),
                           ],
                         ),

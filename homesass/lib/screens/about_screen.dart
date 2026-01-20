@@ -10,7 +10,7 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Обо мне',
+          'About Me',
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -89,7 +89,7 @@ class AboutScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Обо мне',
+                        'About Me',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -98,7 +98,7 @@ class AboutScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Я опытный разработчик с более чем 5-летним опытом в создании веб и мобильных приложений. Специализируюсь на разработке полного цикла, от бэкенда до фронтенда и мобильных приложений.',
+                        'I am an experienced developer with over 5 years of experience in creating web and mobile applications. I specialize in full-cycle development, from backend to frontend and mobile applications.',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           color: const Color(0xFF212529),
@@ -124,7 +124,7 @@ class AboutScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Навыки',
+                        'Skills',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -167,7 +167,7 @@ class AboutScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Контакты',
+                        'Contacts',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -178,7 +178,7 @@ class AboutScreen extends StatelessWidget {
                       _buildContactItem(
                         context,
                         Icons.language,
-                        'Веб-сайт',
+                        'Website',
                         'sinkdev.dev',
                         'https://sinkdev.dev/',
                       ),
@@ -217,7 +217,7 @@ class AboutScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Проекты',
+                        'Projects',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -226,18 +226,18 @@ class AboutScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       _buildProjectItem(
-                        'Умный дом',
-                        'Система умного дома с управлением реле и светодиодами через веб и мобильное приложение.',
+                        'Smart Home',
+                        'Smart home system with relay and LED control via web and mobile application.',
                       ),
                       const SizedBox(height: 16),
                       _buildProjectItem(
-                        'Мобильные приложения',
-                        'Разработка кроссплатформенных мобильных приложений с использованием Flutter.',
+                        'Mobile Applications',
+                        'Cross-platform mobile application development using Flutter.',
                       ),
                       const SizedBox(height: 16),
                       _buildProjectItem(
-                        'Веб-приложения',
-                        'Создание современных веб-приложений с использованием React и Node.js.',
+                        'Web Applications',
+                        'Creating modern web applications using React and Node.js.',
                       ),
                     ],
                   ),
@@ -277,14 +277,16 @@ class AboutScreen extends StatelessWidget {
     return InkWell(
       onTap: () async {
         final uri = Uri.parse(url);
-        if (await canLaunch(uri.toString())) {
-          await launch(uri.toString());
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Не удалось открыть ссылку: $url'),
-            ),
-          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not open link: $url'),
+              ),
+            );
+          }
         }
       },
       child: Row(

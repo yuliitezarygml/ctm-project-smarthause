@@ -163,7 +163,7 @@ class SettingsScreen extends StatelessWidget {
                     title: const Text('WiFi Settings'),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Скоро буду')),
+                        const SnackBar(content: Text('Coming soon')),
                       );
                     },
                   ),
@@ -184,7 +184,7 @@ class SettingsScreen extends StatelessWidget {
                     title: const Text('Notifications'),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Скоро буду')),
+                        const SnackBar(content: Text('Coming soon')),
                       );
                     },
                   ),

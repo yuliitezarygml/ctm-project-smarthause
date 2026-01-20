@@ -151,7 +151,11 @@ class MyApp extends StatelessWidget {
               ),
             ),
           ),
-          home: const SplashScreen(),
+          // Define routes to handle navigation properly
+          routes: {
+            '/': (context) => const SplashScreen(),
+          },
+          initialRoute: '/',
         );
       },
     );
